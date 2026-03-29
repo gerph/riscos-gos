@@ -1,0 +1,30 @@
+/*******************************************************************
+ * File:        env
+ * Purpose:     Program environment handling
+ * Author:      Gerph
+ * Date:        29 Mar 2026
+ ******************************************************************/
+
+#ifndef ENV_H
+#define ENV_H
+
+#include "global.h"
+
+/*************************************************** Gerph *********
+ Function:      env_gos_apply
+ Description:   Initialise our program environment handlers
+ Parameters:    global-> out global workspace
+                preserve = true if we are preserving parent, and false to just assert state
+ Returns:       none
+ ******************************************************************/
+void env_gos_apply(globalws_t *global, bool preserve);
+
+/*************************************************** Gerph *********
+ Function:      env_gos_restore
+ Description:   Restore parent program environment handlers
+ Parameters:    global-> out global workspace
+ Returns:       none
+ ******************************************************************/
+void env_gos_restore(globalws_t *global);
+
+#endif

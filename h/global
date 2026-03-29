@@ -1,0 +1,89 @@
+/*******************************************************************
+ * File:        global
+ * Purpose:     Global workspace for the GOS handling.
+ * Author:      Gerph
+ * Date:        29 Mar 2026
+ ******************************************************************/
+
+#ifndef GLOBAL_H
+#define GLOBAL_H
+
+#include <stdint.h>
+
+#include "kernel.h"
+
+typedef uint32_t codeptr_t;
+
+typedef struct handlers_s {
+    uint32_t        memory_limit;
+    uint32_t        memory_unused_r2;
+    uint32_t        memory_unused_r3;
+
+    codeptr_t       abort_undef_handler;
+    uint32_t        abort_undef_unused_r2;
+    uint32_t        abort_undef_unused_r3;
+
+    codeptr_t       abort_prefetch_handler;
+    uint32_t        abort_prefetch_unused_r2;
+    uint32_t        abort_prefetch_unused_r3;
+
+    codeptr_t       abort_data_handler;
+    uint32_t        abort_data_unused_r2;
+    uint32_t        abort_data_unused_r3;
+
+    codeptr_t       abort_address_handler;
+    uint32_t        abort_address_unused_r2;
+    uint32_t        abort_address_unused_r3;
+
+    codeptr_t       abort_exception_handler;
+    uint32_t        abort_exception_unused_r2;
+    uint32_t        abort_exception_unused_r3;
+
+    codeptr_t       error_handler;
+    uint32_t        error_workspace;
+    _kernel_oserror *error_buffer;
+
+    codeptr_t       callback_handler;
+    uint32_t        callback_workspace;
+    uint32_t        callback_registers;
+
+    /* Never touch 8 Breakpoint */
+
+    codeptr_t       escape_handler;
+    uint32_t        escape_workspace;
+    uint32_t        escape_unused_r3;
+
+    codeptr_t       event_handler;
+    uint32_t        event_workspace;
+    uint32_t        event_unused_r3;
+
+    codeptr_t       exit_handler;
+    uint32_t        exit_workspace;
+    uint32_t        exit_unused_r3;
+
+    /* Never touch 12 Unused SWI */
+    /* Never touch 13 Exception registers */
+    /* Never touch 14 Application Space  */
+    /* Never touch 15 CAO */
+
+    codeptr_t       upcall_handler;
+    uint32_t        upcall_workspace;
+    uint32_t        upcall_unused_r3;
+} handlers_t;
+
+typedef struct riscos_error_buffer_s {
+    uint32_t        pc; /* FIXME: This is only 32bit at the moment */
+    _kernel_oserror err;
+} riscos_error_buffer_t;
+
+typedef struct globalws_s {
+    char *cli;
+    int clisize;
+    /* Stored parent environment */
+    handlers_t parent_handlers;
+
+    /* Our error handling */
+    riscos_error_buffer_t error_buffer;
+} globalws_t;
+
+#endif

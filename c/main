@@ -10,7 +10,9 @@
 #include <signal.h>
 #include <string.h>
 
+#include "global.h"
 #include "os.h"
+#include "env.h"
 
 #include "VersionNum"
 
@@ -23,11 +25,7 @@
 #endif
 
 
-typedef struct globalws_s {
-    char *cli;
-    int clisize;
-    /* Stored parent environment */
-} globalws_t;
+
 
 
 /* Defines for the strings we use */
@@ -91,6 +89,19 @@ void write_command_prompt(globalws_t *global)
 }
 
 
+void env_cli_apply(globalws_t *global)
+{
+    dprintf("Env: Apply CLI environment\n");
+    /* Environment handlers for errors, exit and crashes should be set */
+}
+void env_cli_restore(globalws_t *global)
+{
+    dprintf("Env: Restore GOS environment\n");
+    /* Restore the GOS environment (but don't store the environment we're replacing) */
+    env_gos_apply(global, false);
+}
+
+
 
 /*************************************************** Gerph *********
  Function:      cmd_gos
@@ -107,6 +118,7 @@ _kernel_oserror *cmd_gos(globalws_t *global)
 
     /* We need to set up environment for the *GOS system so that crashes, exits, and errors are handled. */
     /* We need upcall handler set because otherwise switching contexts will break */
+    env_gos_apply(global, true);
 
     os_write0(SUPERVISOR_TITLE);
     os_newline();
@@ -157,12 +169,18 @@ _kernel_oserror *cmd_gos(globalws_t *global)
         }
 
         /* We set up a environment that will report crashes, exits and errors and then return to the input loop */
+        env_cli_apply(global);
+
         /* Invoke OS_CLI on the line input */
         system(global->cli);
 
         /* Restore the error handlers to the outer *GOS system */
+        env_cli_restore(global);
     }
+
     /* Restore error handlers for the parent system */
+    env_gos_restore(global);
+
     /* If err is set, return it so that the assembly can raise the error */
     return err;
 }
