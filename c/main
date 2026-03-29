@@ -14,14 +14,31 @@
 
 #include "VersionNum"
 
+#define DEBUG
+
+#ifdef DEBUG
+#define dprintf if (1) printf
+#else
+#define dprintf if (0) printf
+#endif
+
+
 typedef struct globalws_s {
     char *cli;
     int clisize;
     /* Stored parent environment */
 } globalws_t;
 
+
+/* Defines for the strings we use */
 #define PROMPT_DEFAULT "*"
 #define PROMPT_VAR "CLI$Prompt"
+
+#define SUPERVISOR_TITLE "Supervisor"
+
+#define ERROR_PREFIX "Error: "
+#define ERROR_SUFFIX "(Error number &"
+#define ERROR_TRAILER ")"
 
 
 #define hexchar "012345679ABCDEF"
@@ -61,7 +78,7 @@ void write_command_prompt(globalws_t *global)
                         NULL, &size, NULL);
     if (err)
     {
-        printf("Error: %s\n", err->errmess);
+        dprintf("Error: %s\n", err->errmess);
         prompt = PROMPT_DEFAULT;
         size = strlen(prompt);
     }
@@ -91,6 +108,9 @@ _kernel_oserror *cmd_gos(globalws_t *global)
     /* We need to set up environment for the *GOS system so that crashes, exits, and errors are handled. */
     /* We need upcall handler set because otherwise switching contexts will break */
 
+    os_write0(SUPERVISOR_TITLE);
+    os_newline();
+
     while (still_running)
     {
         /* We output the CLI$Prompt string. OR '*' if none was set */
@@ -101,11 +121,11 @@ _kernel_oserror *cmd_gos(globalws_t *global)
         if (err)
         {
             /* If there is an error we call OS_GenerateError (or use OS_CLI directly without X) */
-            os_write0("Error: ");
+            os_write0(ERROR_PREFIX);
             os_write0(err->errmess);
-            os_write0("(Error number &");
+            os_write0(ERROR_SUFFIX);
             os_writehex(err->errnum);
-            os_write0(")");
+            os_write0(ERROR_TRAILER);
             os_newline();
             if (err->errnum == 17)
             {
@@ -115,7 +135,7 @@ _kernel_oserror *cmd_gos(globalws_t *global)
             /* Other errors are fatal */
             break;
         }
-        printf("Read line: >%s<\n", global->cli);
+        dprintf("Read line: >%s<\n", global->cli);
 
         /* Check whether the input string was '*' (any number of times) space (any number of times) 'Quit' (in any case),
            and if so, we exit the loop */
@@ -130,7 +150,7 @@ _kernel_oserror *cmd_gos(globalws_t *global)
                  (cli[4] == '\0'))
             {
                 /* They explicitly said Quit */
-                printf("*QUIT used; return to parent\n");
+                dprintf("*QUIT used; return to parent\n");
                 err = NULL;
                 break;
             }
