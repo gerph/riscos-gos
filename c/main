@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <signal.h>
+#include <string.h>
 
 #include "os.h"
 
@@ -18,6 +19,59 @@ typedef struct globalws_s {
     int clisize;
     /* Stored parent environment */
 } globalws_t;
+
+#define PROMPT_DEFAULT "*"
+#define PROMPT_VAR "CLI$Prompt"
+
+
+#define hexchar "012345679ABCDEF"
+void os_writehex(uint32_t hex)
+{
+    char buffer[9];
+    char *p = buffer;
+    uint32_t v;
+
+#define WRITEHEX(shift) \
+    v = (hex>>shift) & 15; \
+    if (p!=buffer || v != 0) \
+        *p++ = hexchar[v];
+
+    WRITEHEX(28);
+    WRITEHEX(24);
+    WRITEHEX(20);
+    WRITEHEX(16);
+    WRITEHEX(12);
+    WRITEHEX(8);
+    WRITEHEX(4);
+    WRITEHEX(0);
+    if (p == buffer)
+        *p++ = '0';
+
+    os_writen(buffer, p-buffer);
+}
+
+
+void write_command_prompt(globalws_t *global)
+{
+    _kernel_oserror *err;
+    int size;
+    const char *prompt;
+
+    err = os_readvarval(PROMPT_VAR, global->cli, global->clisize, 0, VarType_String,
+                        NULL, &size, NULL);
+    if (err)
+    {
+        printf("Error: %s\n", err->errmess);
+        prompt = PROMPT_DEFAULT;
+        size = strlen(prompt);
+    }
+    else
+    {
+        prompt = global->cli;
+    }
+
+    os_writen(prompt, size);
+}
 
 
 
@@ -40,14 +94,19 @@ _kernel_oserror *cmd_gos(globalws_t *global)
     while (still_running)
     {
         /* We output the CLI$Prompt string. OR '*' if none was set */
-        printf("*");
+        write_command_prompt(global);
 
         /* We read a line of input from the user */
         err = os_readline(global->cli, global->clisize);
         if (err)
         {
             /* If there is an error we call OS_GenerateError (or use OS_CLI directly without X) */
-            printf("ERROR: %s (Error number %i)\n", err->errmess, err->errnum);
+            os_write0("Error: ");
+            os_write0(err->errmess);
+            os_write0("(Error number &");
+            os_writehex(err->errnum);
+            os_write0(")");
+            os_newline();
             if (err->errnum == 17)
             {
                 /* If it was just an escape, we keep going around the loop */

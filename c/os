@@ -18,6 +18,52 @@ _kernel_oserror *Err_Escape = &_Err_Escape;
 
 
 /*************************************************** Gerph *********
+ Function:      os_readvarval
+ Description:   Read a variable value
+ Parameters:    var-> the variable name to read
+                buf-> the buffer to write to
+                buflen = length of the buffer, or -1 to just read length
+                context = the context for the call, or 0 for first call
+                type = the variable type to read (3 to expand on return)
+                sizep-> where to store the size that was read
+                contextp-> where to store the context value
+                typep-> where to store the type
+ Returns:       error pointer, or NULL if ok
+ ******************************************************************/
+_kernel_oserror *os_readvarval(const char *var, char *buf, int buflen, uint32_t context, int type,
+                               uint32_t *contextp, int *sizep, int *typep)
+{
+    _kernel_oserror *err;
+    uintptr_t size = 0;
+    err = _swix(OS_ReadVarVal, _INR(0,4)|_OUTR(2, 4), var, buf, buflen, context, type, &size, &context, &type);
+    if (err)
+    {
+        if (err->errnum == ErrorNumber_VarCantFind)
+        {
+            /* End of enumeration */
+            size = 0;
+            type = -1;
+            context = 0;
+        }
+        else if (err->errnum != ErrorNumber_BuffOverflow)
+        {
+            /* Other error type */
+            size = 0;
+            type = -1;
+            context = 0;
+        }
+    }
+    if (typep != NULL)
+        *typep = type;
+    if (contextp != NULL)
+        *contextp = context;
+    if (sizep != NULL)
+        *sizep = size;
+    return err;
+}
+
+
+/*************************************************** Gerph *********
  Function:      os_cli
  Description:   Run a CLI command
  Parameters:    cli-> the command line to run
@@ -73,3 +119,62 @@ _kernel_oserror *os_readline(char *line, int len)
 escape:
     return Err_Escape;
 }
+
+
+#ifdef __riscos64
+/* These SWI definitions are present in the RISC OS 64 header */
+#else
+/*************************************************** Gerph *********
+ Function:      os_writec
+ Description:   Write a character to output stream
+ Parameters:    s-> what to write
+                size = number to write
+ Returns:       pointer to error, or NULL if ok.
+ ******************************************************************/
+_kernel_oserror *os_writec(char c)
+{
+    _kernel_oserror *err;
+    err = _swix(OS_WriteC, _IN(0), c);
+    return err;
+}
+
+/*************************************************** Gerph *********
+ Function:      os_writen
+ Description:   Write a number of characters to the output stream
+ Parameters:    s-> what to write
+                size = number to write
+ Returns:       pointer to error, or NULL if ok.
+ ******************************************************************/
+_kernel_oserror *os_writen(const char *s, int size)
+{
+    _kernel_oserror *err;
+    err = _swix(OS_WriteN, _INR(0, 1), s, size);
+    return err;
+}
+
+/*************************************************** Gerph *********
+ Function:      os_write0
+ Description:   Write a 0-terminated string
+ Parameters:    s-> what to write
+ Returns:       pointer to error, or NULL if ok.
+ ******************************************************************/
+_kernel_oserror *os_write0(const char *s)
+{
+    _kernel_oserror *err;
+    err = _swix(OS_Write0, _IN(0), s);
+    return err;
+}
+
+/*************************************************** Gerph *********
+ Function:      os_newline
+ Description:   Write a newline, whatever that means
+ Parameters:    none
+ Returns:       pointer to error, or NULL if ok.
+ ******************************************************************/
+_kernel_oserror *os_newline(void)
+{
+    _kernel_oserror *err;
+    err = _swix(OS_NewLine, 0);
+    return err;
+}
+#endif
