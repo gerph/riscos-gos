@@ -1,18 +1,116 @@
 /*******************************************************************
  * File:        main
  * Purpose:     GOS command line tool
- * Author:      YOUR NAME
+ * Author:      Gerph
  ******************************************************************/
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
+#include <signal.h>
+
+#include "os.h"
 
 #include "VersionNum"
 
+typedef struct globalws_s {
+    char *cli;
+    int clisize;
+    /* Stored parent environment */
+} globalws_t;
+
+
+
+/*************************************************** Gerph *********
+ Function:      cmd_gos
+ Description:   Run the *GOS implementation, supplied only with workspace
+ Parameters:    global-> our global workspace
+ Returns:       pointer to error, if we failed and need to return to the caller with it, or NULL if just exiting
+ ******************************************************************/
+_kernel_oserror *cmd_gos(globalws_t *global)
+{
+    _kernel_oserror *err;
+    bool still_running = true;
+    /* Stack setup is in assembly before we reach here - we should have a couple of kilobytes,
+       because we need command line input which is a few K. */
+
+    /* We need to set up environment for the *GOS system so that crashes, exits, and errors are handled. */
+    /* We need upcall handler set because otherwise switching contexts will break */
+
+    while (still_running)
+    {
+        /* We output the CLI$Prompt string. OR '*' if none was set */
+        printf("*");
+
+        /* We read a line of input from the user */
+        err = os_readline(global->cli, global->clisize);
+        if (err)
+        {
+            /* If there is an error we call OS_GenerateError (or use OS_CLI directly without X) */
+            printf("ERROR: %s (Error number %i)\n", err->errmess, err->errnum);
+            if (err->errnum == 17)
+            {
+                /* If it was just an escape, we keep going around the loop */
+                continue;
+            }
+            /* Other errors are fatal */
+            break;
+        }
+        printf("Read line: >%s<\n", global->cli);
+
+        /* Check whether the input string was '*' (any number of times) space (any number of times) 'Quit' (in any case),
+           and if so, we exit the loop */
+        {
+            const char *cli = global->cli;
+            while (*cli == '*' || *cli == ' ')
+                cli++;
+            if ( ((cli[0] | 32) == 'q') &&
+                 ((cli[1] | 32) == 'u') &&
+                 ((cli[2] | 32) == 'i') &&
+                 ((cli[3] | 32) == 't') &&
+                 (cli[4] == '\0'))
+            {
+                /* They explicitly said Quit */
+                printf("*QUIT used; return to parent\n");
+                err = NULL;
+                break;
+            }
+        }
+
+        /* We set up a environment that will report crashes, exits and errors and then return to the input loop */
+        /* Invoke OS_CLI on the line input */
+        system(global->cli);
+
+        /* Restore the error handlers to the outer *GOS system */
+    }
+    /* Restore error handlers for the parent system */
+    /* If err is set, return it so that the assembly can raise the error */
+    return err;
+}
+
+
+
 int main(int argc, char *argv[])
 {
-    printf("GOS " Module_FullVersionAndDate "\n");
-    printf("Syntax: *GOS\n");
+    _kernel_oserror *err;
+
+    /* We need some global workspace set up */
+    globalws_t global;
+
+    signal(SIGINT, SIG_IGN);
+
+#define CLI_SIZE (1024)
+    /* FIXME: Read the CLI size for this OS */
+    global.cli = malloc(CLI_SIZE);
+    global.clisize = CLI_SIZE;
+    err = cmd_gos(&global);
+    /* Free the global workspace */
+    /* raise any errors */
+    if (err)
+    {
+        printf("Raise error to parent environment by calling OS_GenerateError: %s\n", err->errmess);
+        exit(EXIT_FAILURE);
+    }
 
     exit(EXIT_SUCCESS);
 }

@@ -1,0 +1,30 @@
+/*******************************************************************
+ * File:        os
+ * Purpose:     OS interface veneers
+ * Author:      Gerph
+ * Date:        6 July 2025
+ ******************************************************************/
+
+#ifndef OS_H
+#define OS_H
+
+#include "kernel.h"
+
+/*************************************************** Gerph *********
+ Function:      os_cli
+ Description:   Run a CLI command
+ Parameters:    cli-> the command line to run
+ Returns:       pointer to error, or NULL if no error
+ ******************************************************************/
+_kernel_oserror *os_cli(const char *cli);
+
+/*************************************************** Gerph *********
+ Function:      os_readline
+ Description:   Call OS_ReadLine for input
+ Parameters:    line-> line to read
+                len = max length including terminator
+ Returns:       pointer to error, or NULL if no error
+ ******************************************************************/
+_kernel_oserror *os_readline(char *line, int len);
+
+#endif

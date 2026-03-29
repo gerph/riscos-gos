@@ -1,0 +1,75 @@
+/*******************************************************************
+ * File:        os
+ * Purpose:     OS interface veneers
+ * Author:      Gerph
+ * Date:        6 July 2025
+ ******************************************************************/
+
+#include <stdlib.h>
+#include <stdint.h>
+#include "swis.h"
+
+#include "os.h"
+
+#ifdef SIMPLE_APP
+static _kernel_oserror _Err_Escape = { 17, "Escape" };
+_kernel_oserror *Err_Escape = &_Err_Escape;
+#endif
+
+
+/*************************************************** Gerph *********
+ Function:      os_cli
+ Description:   Run a CLI command
+ Parameters:    cli-> the command line to run
+ Returns:       pointer to error, or NULL if no error
+ ******************************************************************/
+_kernel_oserror *os_cli(const char *cli)
+{
+    _kernel_oserror *err;
+    err = _swix(OS_CLI, _IN(0), cli);
+    if (err)
+        return err;
+    return NULL;
+}
+
+
+/*************************************************** Gerph *********
+ Function:      os_readline
+ Description:   Call OS_ReadLine for input
+ Parameters:    line-> line to read
+                len = max length including terminator
+ Returns:       pointer to error, or NULL if no error
+ ******************************************************************/
+_kernel_oserror *os_readline(char *line, int len)
+{
+    _kernel_oserror *err;
+    int read;
+    uint32_t flags = 0;
+#ifdef __riscos64
+    err = _swix(OS_ReadLine32, _INR(0, 4)|_OUTR(0, 1), line, len, 32, 128, 0, &flags, &read);
+    if (err)
+        return err;
+    if (flags)
+        goto escape;
+    line[read] = '\0';
+    return 1;
+#else
+    err = _swix(OS_ReadLine32, _INR(0, 4)|_OUT(1)|_OUT(_FLAGS), line, len, 32, 128, 0, &read, &flags);
+#ifndef ErrorNumber_ModuleBadSWI
+#define ErrorNumber_ModuleBadSWI          0x110
+#endif
+    if (err && err->errnum == ErrorNumber_ModuleBadSWI)
+    {
+        err = _swix(OS_ReadLine, _INR(0, 4)|_OUT(1)|_OUT(_FLAGS), line, len, 32, 128, 0, &read, &flags);
+    }
+    if (err)
+        return err;
+    if (flags & _C)
+        goto escape;
+    line[read] = '\0';
+    return NULL;
+#endif
+
+escape:
+    return Err_Escape;
+}
