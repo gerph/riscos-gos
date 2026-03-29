@@ -32,9 +32,10 @@ jobs:
       - amu -f Makefile install INSTDIR=Install
 
       # Test the command
-      - echo
-      - echo *** Run command ***
-      - aif32.GOS
+      # We cannot run this command here as it requires input.
+      #- echo
+      #- echo *** Run command ***
+      #- aif32.GOS
 
 
       # Done!
