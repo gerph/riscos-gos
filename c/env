@@ -197,3 +197,17 @@ void env_gos_restore(globalws_t *global)
                          global->parent_handlers.upcall_unused_r3,
                          NULL);
 }
+
+
+
+void env_cli_apply(globalws_t *global)
+{
+    dprintf("Env: Apply CLI environment\n");
+    /* Environment handlers for errors, exit and crashes should be set */
+}
+void env_cli_restore(globalws_t *global)
+{
+    dprintf("Env: Restore GOS environment\n");
+    /* Restore the GOS environment (but don't store the environment we're replacing) */
+    env_gos_apply(global, false);
+}

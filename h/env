@@ -27,4 +27,9 @@ void env_gos_apply(globalws_t *global, bool preserve);
  ******************************************************************/
 void env_gos_restore(globalws_t *global);
 
+
+void env_cli_apply(globalws_t *global);
+void env_cli_restore(globalws_t *global);
+
+
 #endif

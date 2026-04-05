@@ -1,0 +1,203 @@
+/*******************************************************************
+ * File:        prompt
+ * Purpose:     Command prompt-execute loop
+ * Author:      Gerph
+ * Date:        05 Apr 2026
+ ******************************************************************/
+
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "kernel.h"
+
+#include "env.h"
+#include "os.h"
+
+#include "prompt.h"
+
+#define DEBUG
+
+#ifdef DEBUG
+#define dprintf if (1) printf
+#else
+#define dprintf if (0) printf
+#endif
+
+
+/* Defines for the strings we use */
+#define PROMPT_DEFAULT "*"
+#define PROMPT_VAR "CLI$Prompt"
+
+#define SUPERVISOR_TITLE "Supervisor"
+
+#define ERROR_PREFIX "Error: "
+#define ERROR_SUFFIX "(Error number &"
+#define ERROR_TRAILER ")"
+
+
+#define hexchar "012345679ABCDEF"
+void os_writehex(uint32_t hex)
+{
+    char buffer[9];
+    char *p = buffer;
+    uint32_t v;
+
+#define WRITEHEX(shift) \
+    v = (hex>>shift) & 15; \
+    if (p!=buffer || v != 0) \
+        *p++ = hexchar[v];
+
+    WRITEHEX(28);
+    WRITEHEX(24);
+    WRITEHEX(20);
+    WRITEHEX(16);
+    WRITEHEX(12);
+    WRITEHEX(8);
+    WRITEHEX(4);
+    WRITEHEX(0);
+    if (p == buffer)
+        *p++ = '0';
+
+    os_writen(buffer, p-buffer);
+}
+
+
+/*************************************************** Gerph *********
+ Function:      print_command_prompt
+ Description:   Write out the command prompt
+ Parameters:    global-> our global workspace
+ Returns:       none
+ ******************************************************************/
+void print_command_prompt(globalws_t *global)
+{
+    _kernel_oserror *err;
+    int size;
+    const char *prompt;
+
+    err = os_readvarval(PROMPT_VAR, global->cli, global->clisize, 0, VarType_String,
+                        NULL, &size, NULL);
+    if (err)
+    {
+        dprintf("Error: %s\n", err->errmess);
+        prompt = PROMPT_DEFAULT;
+        size = strlen(prompt);
+    }
+    else
+    {
+        prompt = global->cli;
+    }
+
+    os_writen(prompt, size);
+}
+
+
+/*************************************************** Gerph *********
+ Function:      print_error
+ Description:   Print out an error message
+ Parameters:    global-> our global workspace
+                err-> the error message to print
+ Returns:       none
+ ******************************************************************/
+void print_error(globalws_t *global, _kernel_oserror *err)
+{
+    /* If there is an error we call OS_GenerateError (or use OS_CLI directly without X) */
+    os_write0(ERROR_PREFIX);
+    os_write0(err->errmess);
+    os_write0(ERROR_SUFFIX);
+    os_writehex(err->errnum);
+    os_write0(ERROR_TRAILER);
+    os_newline();
+}
+
+
+/*************************************************** Gerph *********
+ Function:      run_prompt
+ Description:   Runs the command prompt-execution loop
+ Parameters:    global-> the global workspace
+ Returns:       error block if we're raising an error, or NULL if we're just OS_Exiting
+ ******************************************************************/
+_kernel_oserror *run_prompt(globalws_t *global)
+{
+    _kernel_oserror *err;
+    bool still_running = true;
+    /* We need to set up environment for the *GOS system so that crashes, exits, and errors are handled. */
+    /* We need upcall handler set because otherwise switching contexts will break */
+    env_gos_apply(global, true);
+
+
+    while (still_running)
+    {
+        global->in_prompt = true;
+
+        /* We output the CLI$Prompt string. OR '*' if none was set */
+        print_command_prompt(global);
+
+        /* We read a line of input from the user */
+        err = os_readline(global->cli, global->clisize);
+        if (err)
+        {
+            print_error(global, err);
+            if (err->errnum == 17)
+            {
+                /* If it was just an escape, we keep going around the loop */
+                continue;
+            }
+            /* Other errors are fatal */
+            break;
+        }
+        dprintf("Read line: >%s<\n", global->cli);
+
+        /* Check whether the input string was '*' (any number of times) space (any number of times) 'Quit' (in any case),
+           and if so, we exit the loop */
+        {
+            const char *cli = global->cli;
+            while (*cli == '*' || *cli == ' ')
+                cli++;
+            if ( ((cli[0] | 32) == 'q') &&
+                 ((cli[1] | 32) == 'u') &&
+                 ((cli[2] | 32) == 'i') &&
+                 ((cli[3] | 32) == 't') &&
+                 (cli[4] == '\0'))
+            {
+                /* They explicitly said Quit */
+                dprintf("*QUIT used; return to parent\n");
+                err = NULL;
+                break;
+            }
+        }
+
+        global->in_prompt = false;
+
+        /* We set up a environment that will report crashes, exits and errors and then return to the input loop */
+        env_cli_apply(global);
+
+        /* Invoke OS_CLI on the line input */
+        system(global->cli);
+
+        /* Restore the error handlers to the outer *GOS system */
+        env_cli_restore(global);
+    }
+
+    /* Restore error handlers for the parent system */
+    env_gos_restore(global);
+
+    /* If err is set, return it so that the assembly can raise the error */
+    return err;
+}
+
+
+/*************************************************** Gerph *********
+ Function:      start_supervisor
+ Description:   Start the command line supervisor
+ Parameters:    global-> our global workspace
+ Returns:       pointer to error if we OS_GenerateError, or NULL for OS_Exit
+ ******************************************************************/
+_kernel_oserror *start_supervisor(globalws_t *global)
+{
+    os_write0(SUPERVISOR_TITLE);
+    os_newline();
+    os_newline();
+
+    return run_prompt(global);
+}

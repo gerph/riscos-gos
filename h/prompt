@@ -1,0 +1,43 @@
+/*******************************************************************
+ * File:        prompt
+ * Purpose:     Command prompt-execute loop
+ * Author:      Gerph
+ * Date:        05 Apr 2026
+ ******************************************************************/
+
+#ifndef PROMPT_H
+#define PROMPT_H
+
+#include "kernel.h"
+#include "global.h"
+
+
+/*************************************************** Gerph *********
+ Function:      print_error
+ Description:   Print out an error message
+ Parameters:    global-> our global workspace
+                err-> the error message to print
+ Returns:       none
+ ******************************************************************/
+void print_error(globalws_t *global, _kernel_oserror *err);
+
+
+/*************************************************** Gerph *********
+ Function:      run_prompt
+ Description:   Runs the command prompt-execution loop
+ Parameters:    global-> the global workspace
+ Returns:       error block if we're raising an error, or NULL if we're just OS_Exiting
+ ******************************************************************/
+_kernel_oserror *run_prompt(globalws_t *global);
+
+
+/*************************************************** Gerph *********
+ Function:      start_supervisor
+ Description:   Start the command line supervisor
+ Parameters:    global-> our global workspace
+ Returns:       pointer to error if we OS_GenerateError, or NULL for OS_Exit
+ ******************************************************************/
+_kernel_oserror *start_supervisor(globalws_t *global);
+
+
+#endif

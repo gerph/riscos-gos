@@ -13,6 +13,7 @@
 #include "global.h"
 #include "os.h"
 #include "env.h"
+#include "prompt.h"
 
 #include "VersionNum"
 
@@ -28,77 +29,67 @@
 
 
 
-/* Defines for the strings we use */
-#define PROMPT_DEFAULT "*"
-#define PROMPT_VAR "CLI$Prompt"
-
-#define SUPERVISOR_TITLE "Supervisor"
-
-#define ERROR_PREFIX "Error: "
-#define ERROR_SUFFIX "(Error number &"
-#define ERROR_TRAILER ")"
 
 
-#define hexchar "012345679ABCDEF"
-void os_writehex(uint32_t hex)
-{
-    char buffer[9];
-    char *p = buffer;
-    uint32_t v;
-
-#define WRITEHEX(shift) \
-    v = (hex>>shift) & 15; \
-    if (p!=buffer || v != 0) \
-        *p++ = hexchar[v];
-
-    WRITEHEX(28);
-    WRITEHEX(24);
-    WRITEHEX(20);
-    WRITEHEX(16);
-    WRITEHEX(12);
-    WRITEHEX(8);
-    WRITEHEX(4);
-    WRITEHEX(0);
-    if (p == buffer)
-        *p++ = '0';
-
-    os_writen(buffer, p-buffer);
-}
-
-
-void write_command_prompt(globalws_t *global)
+/*************************************************** Gerph *********
+ Function:      env_exit
+ Description:   Exit handler code
+ Parameters:    global-> our global workspace
+ Returns:       error pointer if we are to raise an error (OS_GenerateError), or NULL to exit (OS_Exit)
+                On return the environment should have been restored.
+ ******************************************************************/
+_kernel_oserror *env_exit(globalws_t *global)
 {
     _kernel_oserror *err;
-    int size;
-    const char *prompt;
 
-    err = os_readvarval(PROMPT_VAR, global->cli, global->clisize, 0, VarType_String,
-                        NULL, &size, NULL);
-    if (err)
+    /* They called OS_Exit, so just go back to the prompt (unless they were /at/ the prompt, in which case exit) */
+    dprintf("GOS: Exit handler (%s)", global->in_prompt ? "in prompt" : "outside prompt");
+    if (global->in_prompt)
     {
-        dprintf("Error: %s\n", err->errmess);
-        prompt = PROMPT_DEFAULT;
-        size = strlen(prompt);
+        env_gos_restore(global);
+        /* We were in the prompt so we restore environment and exit */
+        err = NULL; /* Just OS_Exit */
     }
     else
     {
-        prompt = global->cli;
+        err = run_prompt(global);
     }
-
-    os_writen(prompt, size);
+    /* Return from this environment exit handler, frees all our workspace and calls OS_Exit */
+    return err;
 }
 
 
-void env_cli_apply(globalws_t *global)
+/*************************************************** Gerph *********
+ Function:      env_error
+ Description:   Error handler code
+ Parameters:    global-> our global workspace
+ Returns:       error pointer if we are to raise an error (OS_GenerateError), or NULL to exit (OS_Exit)
+                On return the environment should have been restored.
+ ******************************************************************/
+_kernel_oserror *env_error(globalws_t *global, _kernel_oserror *err)
 {
-    dprintf("Env: Apply CLI environment\n");
-    /* Environment handlers for errors, exit and crashes should be set */
+    dprintf("GOS: Error handler");
+
+    print_error(global, err);
+
+    /* And return to the command line input */
+    err = run_prompt(global);
+
+    /* Return from this environment exit handler, frees all our workspace and calls OS_Exit */
+    return err;
 }
-void env_cli_restore(globalws_t *global)
+
+
+/*************************************************** Gerph *********
+ Function:      env_escape
+ Description:   Escape handler code
+ Parameters:    global-> our global workspace
+ Returns:       none (returns back to the application unless you do something else)
+ ******************************************************************/
+void env_escape(globalws_t *global)
 {
-    dprintf("Env: Restore GOS environment\n");
-    /* Restore the GOS environment (but don't store the environment we're replacing) */
-    env_gos_apply(global, false);
+    /* Nothing to do here (in the default Escape handler this is MOV pc,lr) */
+    dprintf("GOS: Escape handler");
 }
 
 
@@ -111,78 +102,12 @@ void env_cli_restore(globalws_t *global)
  ******************************************************************/
 _kernel_oserror *cmd_gos(globalws_t *global)
 {
-    _kernel_oserror *err;
-    bool still_running = true;
     /* Stack setup is in assembly before we reach here - we should have a couple of kilobytes,
        because we need command line input which is a few K. */
 
-    /* We need to set up environment for the *GOS system so that crashes, exits, and errors are handled. */
-    /* We need upcall handler set because otherwise switching contexts will break */
-    env_gos_apply(global, true);
+    /* FIXME: We may need to set up the CAO - this should be done by the module entry */
 
-    os_write0(SUPERVISOR_TITLE);
-    os_newline();
-
-    while (still_running)
-    {
-        /* We output the CLI$Prompt string. OR '*' if none was set */
-        write_command_prompt(global);
-
-        /* We read a line of input from the user */
-        err = os_readline(global->cli, global->clisize);
-        if (err)
-        {
-            /* If there is an error we call OS_GenerateError (or use OS_CLI directly without X) */
-            os_write0(ERROR_PREFIX);
-            os_write0(err->errmess);
-            os_write0(ERROR_SUFFIX);
-            os_writehex(err->errnum);
-            os_write0(ERROR_TRAILER);
-            os_newline();
-            if (err->errnum == 17)
-            {
-                /* If it was just an escape, we keep going around the loop */
-                continue;
-            }
-            /* Other errors are fatal */
-            break;
-        }
-        dprintf("Read line: >%s<\n", global->cli);
-
-        /* Check whether the input string was '*' (any number of times) space (any number of times) 'Quit' (in any case),
-           and if so, we exit the loop */
-        {
-            const char *cli = global->cli;
-            while (*cli == '*' || *cli == ' ')
-                cli++;
-            if ( ((cli[0] | 32) == 'q') &&
-                 ((cli[1] | 32) == 'u') &&
-                 ((cli[2] | 32) == 'i') &&
-                 ((cli[3] | 32) == 't') &&
-                 (cli[4] == '\0'))
-            {
-                /* They explicitly said Quit */
-                dprintf("*QUIT used; return to parent\n");
-                err = NULL;
-                break;
-            }
-        }
-
-        /* We set up a environment that will report crashes, exits and errors and then return to the input loop */
-        env_cli_apply(global);
-
-        /* Invoke OS_CLI on the line input */
-        system(global->cli);
-
-        /* Restore the error handlers to the outer *GOS system */
-        env_cli_restore(global);
-    }
-
-    /* Restore error handlers for the parent system */
-    env_gos_restore(global);
-
-    /* If err is set, return it so that the assembly can raise the error */
-    return err;
+    return start_supervisor(global);
 }
 
 

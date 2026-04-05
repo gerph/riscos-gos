@@ -8,6 +8,7 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "kernel.h"
@@ -71,19 +72,27 @@ typedef struct handlers_s {
     uint32_t        upcall_unused_r3;
 } handlers_t;
 
+
+
 typedef struct riscos_error_buffer_s {
     uint32_t        pc; /* FIXME: This is only 32bit at the moment */
     _kernel_oserror err;
 } riscos_error_buffer_t;
 
+
+
 typedef struct globalws_s {
     char *cli;
     int clisize;
+
     /* Stored parent environment */
     handlers_t parent_handlers;
 
     /* Our error handling */
     riscos_error_buffer_t error_buffer;
+
+    /* Are we in the prompt (if not, we're in the command being executed) */
+    bool in_prompt;
 } globalws_t;
 
 #endif
