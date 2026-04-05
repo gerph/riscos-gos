@@ -13,5 +13,6 @@
 _kernel_oserror *enter_gos(void);
 void _env_error(void);
 void _env_escape(void);
+void _env_exit(void);
 
 #endif

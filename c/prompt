@@ -146,9 +146,8 @@ _kernel_oserror *run_prompt(globalws_t *global)
 {
     _kernel_oserror *err = NULL;
     bool still_running = true;
-    /* We need to set up environment for the *GOS system so that crashes, exits, and errors are handled. */
-    /* We need upcall handler set because otherwise switching contexts will break */
-    env_gos_apply(global, true);
+
+    env_cli_restore(global);
 
     while (still_running)
     {
@@ -238,6 +237,10 @@ _kernel_oserror *start_supervisor(globalws_t *global)
     os_newline();
     os_newline();
 
+    /* We need to set up environment for the *GOS system so that crashes, exits, and errors are handled. */
+    /* We need upcall handler set because otherwise switching contexts will break */
+    env_gos_apply(global, true);
+
     return run_prompt(global);
 }
 
@@ -255,7 +258,7 @@ _kernel_oserror *env_exit(globalws_t *global)
     _kernel_oserror *err;
 
     /* They called OS_Exit, so just go back to the prompt (unless they were /at/ the prompt, in which case exit) */
-    dprintf("GOS: Exit handler (%s)", global->in_prompt ? "in prompt" : "outside prompt");
+    dprintf("GOS: Exit handler (%s)\n", global->in_prompt ? "in prompt" : "outside prompt");
     if (global->in_prompt)
     {
         env_gos_restore(global);

@@ -73,15 +73,16 @@ void _env_escape(_kernel_oserror *err)
     *(int*)0 = 0;
 }
 
-#else
-#include "entrypoints.h"
-#endif
-
 void _env_exit(_kernel_oserror *err)
 {
     /* FIXME: We crash */
     *(int*)0 = 0;
 }
+
+#else
+#include "entrypoints.h"
+#endif
+
 
 /*************************************************** Gerph *********
  Function:      env_gos_apply
@@ -137,7 +138,7 @@ void env_gos_apply(globalws_t *global, bool preserve)
                          !preserve ? NULL : &global->parent_handlers.event_handler);
 
     os_changeenvironment(ExitHandler,
-                         (uint32_t)&_env_exit, ENV_READ, ENV_READ,
+                         (uint32_t)&_env_exit, (uint32_t)global, ENV_READ,
                          !preserve ? NULL : &global->parent_handlers.exit_handler);
 
     os_changeenvironment(UpCallHandler,

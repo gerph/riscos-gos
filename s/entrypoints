@@ -19,6 +19,7 @@ STACKSIZE       *   1024
         EXPORT  enter_gos
         EXPORT  _env_error
         EXPORT  _env_escape
+        EXPORT  _env_exit
 
 
 enter_gos APCSEntry "r4-r9"
@@ -134,6 +135,18 @@ _env_error SIGNATURE
         LDR     sp, [r0, #8]                                ; restore stack to the top
         SUB     sl, sp, #STACKSIZE
         BL      env_error                                   ; The C handler
+        B       handle_exit
+
+
+;void _env_exit(_kernel_oserror *err)
+; => R12 = global workspace pointer
+;    USR mode
+_env_exit SIGNATURE
+        MOV     fp, #0
+        LDR     sp, [r12, #8]                               ; restore stack to the top
+        SUB     sl, sp, #STACKSIZE
+        MOV     r0, r12
+        BL      env_exit                                    ; The C handler
         B       handle_exit
 
 
