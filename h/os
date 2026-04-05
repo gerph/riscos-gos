@@ -52,6 +52,23 @@ _kernel_oserror *os_readvarval(const char *var, char *buf, int buflen, uint32_t 
  ******************************************************************/
 _kernel_oserror *os_cli(const char *cli);
 
+
+/*************************************************** Gerph *********
+ Function:      os_generateerror
+ Description:   Raise an error to the environment
+ Parameters:    err -> the error to raise
+ Returns:       never
+ ******************************************************************/
+void os_generateerror(_kernel_oserror *err);
+
+/*************************************************** Gerph *********
+ Function:      os_exit
+ Description:   Exit the application
+ Parameters:    none
+ Returns:       never
+ ******************************************************************/
+void os_exit(void);
+
 /*************************************************** Gerph *********
  Function:      os_readline
  Description:   Call OS_ReadLine for input

@@ -82,6 +82,33 @@ _kernel_oserror *os_cli(const char *cli)
 
 
 /*************************************************** Gerph *********
+ Function:      os_generateerror
+ Description:   Raise an error to the environment
+ Parameters:    err -> the error to raise
+ Returns:       never
+ ******************************************************************/
+void os_generateerror(_kernel_oserror *err)
+{
+    _swi(OS_GenerateError, _IN(0), err);
+    /* if it returns, that's BAD */
+    os_exit();
+}
+
+/*************************************************** Gerph *********
+ Function:      os_exit
+ Description:   Exit the application
+ Parameters:    none
+ Returns:       never
+ ******************************************************************/
+void os_exit(void)
+{
+    _swi(OS_Exit, 0);
+    /* If we hit here, that's fatal */
+    while (1) {}
+}
+
+
+/*************************************************** Gerph *********
  Function:      os_readline
  Description:   Call OS_ReadLine for input
  Parameters:    line-> line to read

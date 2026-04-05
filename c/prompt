@@ -180,7 +180,15 @@ _kernel_oserror *run_prompt(globalws_t *global)
         env_cli_apply(global);
 
         /* Invoke OS_CLI on the line input */
+#ifdef SIMPLE_APP
         system(global->cli);
+#else
+        err = os_cli(global->cli);
+        if (err)
+        {
+            os_generateerror(err);
+        }
+#endif
 
         /* Restore the error handlers to the outer *GOS system */
         env_cli_restore(global);
