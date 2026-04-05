@@ -2,10 +2,87 @@
 
         AREA    |C$$code|, CODE, READONLY
 
+        GET     hdr.modhand
+        GET     hdr.swis
+        GET     hdr.procapcs
+        GET     hdr.envnumbers
+
+STACKSIZE       *   1024
+
+        IMPORT  gos_workspace_size
+        IMPORT  start_supervisor
+
         EXPORT  enter_gos
 
-enter_gos
-        MOV     r0, #0
-        MOV     pc, lr
+enter_gos APCSEntry "r4-r9"
+
+        ; Allocate some memory for the USR mode stack.
+        ; Allocate our global workspace.
+        BL      gos_workspace_size                          ; read the workspace size the C needs
+        MOV     r4, r0
+
+        BL      get_cli_size
+        MOV     r5, r0
+
+        ADD     r3, r4, #STACKSIZE
+        ADD     r3, r3, r5
+
+        XSWI    XOS_Module, #ModHandReason_Claim
+        BVS     %FT90
+        ; r2 = our workspace ptr, with stack above it (r3 bytes above)
+        ; r5 contains the size of the CLI buffer
+        ; r4 contains the global workspace size
+
+        ; Drop to USR mode.
+        MRS     r0, CPSR
+        BIC     r0, r0, #0x1F                               ; enter user mode
+        MSR     CPSR_cxsf, r0
+
+        ; Set the stack pointer.
+        ADD     sp, r2, r3                                  ; sp-> end of the workspace
+
+        ; Initialise the global workspace
+        ADD     r6, r2, r4                                  ; r6-> CLI buffer
+        STR     r6, [r2, #0]                                ; global->cli = CLI buffer
+        STR     r5, [r2, #4]                                ; global->clisize = CLI size
+
+        ; Start execution at `start_supervisor`, passing workspace
+        MOV     r0, r2
+        BL      start_supervisor
+        CMP     r0, #0
+
+        ; if we returned with a error, call OS_GenerateError
+        ; if no error, call OS_Exit
+        SWIVS   OS_GenerateError
+        SWI     OS_Exit
+
+        ; We never reach here.
+
+90
+        APCSExit
+
+
+
+get_cli_size APCSEntry
+        XSWI    OS_ChangeEnvironment, #CommandLineArea, 0, 0, 0
+        MOVVC   r0, r1
+        BVC     %FT90
+
+; Not a system that understands the OS_ChangeEnvironment for the CLI size; let's work it out.
+OSByte_ReadKeyboard * 0x81
+; The following system types have 1024 byte CLIs:
+;     &A8 RISC OS 4.0x
+;     &A9 RISC OS 4.3x
+;     &AA RISC OS 5.xx
+;     &AE RISC OS Pyromaniac
+; Everyone else is 256.
+        XSWI    OS_Byte, #OSByte_ReadKeyboard, #0, #255
+        SUB     r1, r1, #&A8
+        CMP     r1, #&AE-&A8
+        MOVHI   r0, #256                                    ; everyone else is 256
+        MOVLS   r0, #1024
+
+90
+        APCSExit
 
         END

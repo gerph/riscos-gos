@@ -14,6 +14,8 @@
 #ifdef SIMPLE_APP
 static _kernel_oserror _Err_Escape = { 17, "Escape" };
 _kernel_oserror *Err_Escape = &_Err_Escape;
+#else
+#include "modhead.h"
 #endif
 
 
