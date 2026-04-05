@@ -5,7 +5,7 @@
 #
 # Program specific options:
 #
-COMPONENT  = UtilityModule
+COMPONENT  = UtilityModuleC
 
 # Specifies additional targets for startup
 INITTARGET = inittarget

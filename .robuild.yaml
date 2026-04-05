@@ -42,6 +42,10 @@ jobs:
       - echo *** Build the module ***
       - amu -f MakefileMod install INSTDIR=Install
 
+      # Load the module to check that it starts
+      - echo
+      - echo *** Load the module ***
+      - RMLoad rm32.UtilityModuleC
 
       # Done!
       - echo

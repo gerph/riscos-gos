@@ -90,7 +90,11 @@ _kernel_oserror *Mod_Command(const char *arg_string, int argc, int number,
 {
     switch (number)
     {
+#ifdef CMD_GOSC
+        case CMD_GOSC:
+#else
         case CMD_GOS:
+#endif
             return enter_gos();
     }
     return NULL;
