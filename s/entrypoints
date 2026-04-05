@@ -1,0 +1,11 @@
+; Entrypoints for the *GOS command
+
+        AREA    |C$$code|, CODE, READONLY
+
+        EXPORT  enter_gos
+
+enter_gos
+        MOV     r0, #0
+        MOV     pc, lr
+
+        END

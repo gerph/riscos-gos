@@ -1,0 +1,15 @@
+/*******************************************************************
+ * File:        entrypoints
+ * Purpose:     Asssembly veneers for entering the supervisor with the right environment.
+ * Author:      Gerph
+ * Date:        05 Apr 2026
+ ******************************************************************/
+
+#ifndef ENTRYPOINT_H
+#define ENTRYPOINT_H
+
+#include "kernel.h"
+
+_kernel_oserror *enter_gos(void);
+
+#endif

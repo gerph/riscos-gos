@@ -26,9 +26,9 @@ jobs:
     # The build will terminate if any command returns a non-0 return code or an error.
     script:
 
-      # Build component
+      # Build test command line
       - echo
-      - echo *** Build the component ***
+      - echo *** Build the test command line ***
       - amu -f Makefile install INSTDIR=Install
 
       # Test the command
@@ -36,6 +36,11 @@ jobs:
       #- echo
       #- echo *** Run command ***
       #- aif32.GOS
+
+      # Build module
+      - echo
+      - echo *** Build the module ***
+      - amu -f MakefileMod install INSTDIR=Install
 
 
       # Done!
