@@ -4,6 +4,7 @@
 
         GET     hdr.modhand
         GET     hdr.swis
+        GET     hdr.printmacros
         GET     hdr.procapcs
         GET     hdr.envnumbers
 
@@ -21,17 +22,33 @@ enter_gos APCSEntry "r4-r9"
         BL      gos_workspace_size                          ; read the workspace size the C needs
         MOV     r4, r0
 
+            PrintMessage "get_workspace_size: "
+            PrintInteger r4
+            SWI     OS_NewLine
+
         BL      get_cli_size
         MOV     r5, r0
 
+            PrintMessage "get_cli_size: "
+            PrintInteger r5
+            SWI     OS_NewLine
+
         ADD     r3, r4, #STACKSIZE
         ADD     r3, r3, r5
+
+            PrintMessage "total workspace: "
+            PrintInteger r3
+            SWI     OS_NewLine
 
         XSWI    XOS_Module, #ModHandReason_Claim
         BVS     %FT90
         ; r2 = our workspace ptr, with stack above it (r3 bytes above)
         ; r5 contains the size of the CLI buffer
         ; r4 contains the global workspace size
+
+            PrintMessage "global workspace: "
+            PrintHex r2
+            SWI     OS_NewLine
 
         ; Drop to USR mode.
         MRS     r0, CPSR
@@ -40,6 +57,15 @@ enter_gos APCSEntry "r4-r9"
 
         ; Set the stack pointer.
         ADD     sp, r2, r3                                  ; sp-> end of the workspace
+        SUB     sl, sp, #STACKSIZE                          ; stack limit = end - stack size
+
+            MOV     r0, sp
+            PrintMessage "stack pointer: "
+            PrintHex r0
+            SWI     OS_NewLine
+            PrintMessage "stack limit: "
+            PrintHex sl
+            SWI     OS_NewLine
 
         ; Initialise the global workspace
         ADD     r6, r2, r4                                  ; r6-> CLI buffer
@@ -65,7 +91,7 @@ enter_gos APCSEntry "r4-r9"
 
 get_cli_size APCSEntry
         XSWI    OS_ChangeEnvironment, #CommandLineArea, 0, 0, 0
-        MOVVC   r0, r1
+        MOVVC   r0, r2
         BVC     %FT90
 
 ; Not a system that understands the OS_ChangeEnvironment for the CLI size; let's work it out.

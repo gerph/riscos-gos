@@ -1,0 +1,97 @@
+/*******************************************************************
+ * File:        dumbprintf
+ * Purpose:     VERY dumb printf routine
+ * Author:      Gerph
+ * Date:        05 Apr 2026
+ ******************************************************************/
+
+#include <stdint.h>
+#include <stdarg.h>
+#include <string.h>
+
+#include "os.h"
+
+#include "debug.h"
+
+int _dumb_vprintf(const char *format, va_list args)
+{
+    int n = 0;
+    while (*format)
+    {
+        char c;
+        size_t next_break = strcspn(format, "\n%");
+        if (next_break != 0)
+        {
+            os_writen(format, next_break);
+            n += next_break;
+            format += next_break;
+        }
+        c = *format++;
+        if (c=='\n')
+        {
+            os_newline();
+            n += 1;
+            continue;
+        }
+
+
+        /* It's a %, so we process the format characters */
+        /* Process the format character */
+        c = *format++;
+
+        switch (c)
+        {
+            case '%':
+                os_writec('%');
+                n += 1;
+                break;
+
+            case '\0':
+                n += 1;
+                format--;
+                continue;
+
+            case 's':
+                {
+                    const char *s = va_arg(args, const char *);
+                    int len = strlen(s);
+                    os_write0(s);
+                    n += len;
+                    continue;
+                }
+                break;
+
+            case 'i':
+            case 'x':
+                {
+                    uint32_t value = va_arg(args, uint32_t);
+                    int i;
+                    os_writec('&');
+                    for (i=0; i<8; i++)
+                    {
+                        os_writec("0123456789ABCDEF"[ (value>> (28 - (i*4))) & 15]);
+                    }
+                    n+=9;
+                    continue;
+                }
+
+            default:
+                os_writec('%');
+                os_writec(c);
+                continue;
+        }
+    }
+    return n;
+}
+
+int _dumb_printf(const char *format, ...)
+{
+    int n;
+    va_list args;
+    va_start(args, format);
+
+    n = _dumb_vprintf(format, args);
+
+    va_end(args);
+    return n;
+}

@@ -82,6 +82,7 @@ typedef struct riscos_error_buffer_s {
 
 
 typedef struct globalws_s {
+    /* These 2 MUST match the use inside the assembly code */
     char *cli;
     int clisize;
 

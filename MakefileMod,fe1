@@ -36,6 +36,7 @@ CDEFINES   =
 
 # Objects to build, using the format o.<name> (will be varied for build type)
 OBJS       = o.modhead \
+			 o.dumbprintf \
 			 o.module \
 			 o.entrypoints \
 	         o.os \

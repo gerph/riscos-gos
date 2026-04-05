@@ -1,0 +1,15 @@
+#ifndef DEBUG_H
+#define DEBUG_H
+
+#ifndef SIMPLE_APP
+int _dumb_printf(const char *format, ...);
+#define printf _dumb_printf
+#endif
+
+#ifdef DEBUG
+#define dprintf if (1) printf
+#else
+#define dprintf if (0) printf
+#endif
+
+#endif

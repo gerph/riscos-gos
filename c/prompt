@@ -18,11 +18,7 @@
 
 #define DEBUG
 
-#ifdef DEBUG
-#define dprintf if (1) printf
-#else
-#define dprintf if (0) printf
-#endif
+#include "debug.h"
 
 
 /* Defines for the strings we use */
