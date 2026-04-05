@@ -82,6 +82,9 @@ void print_command_prompt(globalws_t *global)
     int size;
     const char *prompt;
 
+    dprintf("print_command_prompt: global workspace = %p\n", global);
+    dprintf("print_command_prompt: cli workspace = %p\n", global->cli);
+
     err = os_readvarval(PROMPT_VAR, global->cli, global->clisize, 0, VarType_String,
                         NULL, &size, NULL);
     if (err)
