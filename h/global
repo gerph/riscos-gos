@@ -85,6 +85,7 @@ typedef struct globalws_s {
     /* These 2 MUST match the use inside the assembly code */
     char *cli;
     int clisize;
+    void *stacktop;
 
     /* Stored parent environment */
     handlers_t parent_handlers;

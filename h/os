@@ -8,6 +8,7 @@
 #ifndef OS_H
 #define OS_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "kernel.h"
@@ -52,6 +53,22 @@ _kernel_oserror *os_readvarval(const char *var, char *buf, int buflen, uint32_t 
  ******************************************************************/
 _kernel_oserror *os_cli(const char *cli);
 
+
+/*************************************************** Gerph *********
+ Function:      escape_check
+ Description:   Check whether escape is pending
+ Parameters:    none
+ Returns:       true if pending, false if not
+ ******************************************************************/
+bool escape_check(void);
+
+/*************************************************** Gerph *********
+ Function:      escape_acknowledge
+ Description:   Acknowledge the escape conditions
+ Parameters:    none
+ Returns:       none
+ ******************************************************************/
+void escape_acknowledge(void);
 
 /*************************************************** Gerph *********
  Function:      os_generateerror

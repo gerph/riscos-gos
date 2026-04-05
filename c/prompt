@@ -28,8 +28,10 @@
 #define SUPERVISOR_TITLE "Supervisor"
 
 #define ERROR_PREFIX "Error: "
-#define ERROR_SUFFIX "(Error number &"
+#define ERROR_SUFFIX " (Error number &"
 #define ERROR_TRAILER ")"
+
+#define ESCAPE "Escape"
 
 
 #define hexchar "0123456789ABCDEF"
@@ -120,6 +122,19 @@ void print_error(globalws_t *global, _kernel_oserror *err)
     os_newline();
 }
 
+/*************************************************** Gerph *********
+ Function:      escape
+ Description:   Escape reporting
+ Parameters:    none
+ Returns:       none
+ ******************************************************************/
+void escape(void)
+{
+    escape_acknowledge();
+    os_newline();
+    os_write0(ESCAPE);
+    os_newline();
+}
 
 /*************************************************** Gerph *********
  Function:      run_prompt
@@ -129,16 +144,21 @@ void print_error(globalws_t *global, _kernel_oserror *err)
  ******************************************************************/
 _kernel_oserror *run_prompt(globalws_t *global)
 {
-    _kernel_oserror *err;
+    _kernel_oserror *err = NULL;
     bool still_running = true;
     /* We need to set up environment for the *GOS system so that crashes, exits, and errors are handled. */
     /* We need upcall handler set because otherwise switching contexts will break */
     env_gos_apply(global, true);
 
-
     while (still_running)
     {
         global->in_prompt = true;
+
+        if (escape_check())
+        {
+            escape();
+            continue;
+        }
 
         /* We output the CLI$Prompt string. OR '*' if none was set */
         print_command_prompt(global);
@@ -147,13 +167,14 @@ _kernel_oserror *run_prompt(globalws_t *global)
         err = os_readline(global->cli, global->clisize);
         if (err)
         {
-            print_error(global, err);
             if (err->errnum == 17)
             {
                 /* If it was just an escape, we keep going around the loop */
+                escape();
                 continue;
             }
             /* Other errors are fatal */
+            print_error(global, err);
             break;
         }
         dprintf("Read line: >%s<\n", global->cli);
@@ -219,3 +240,69 @@ _kernel_oserror *start_supervisor(globalws_t *global)
 
     return run_prompt(global);
 }
+
+
+
+/*************************************************** Gerph *********
+ Function:      env_exit
+ Description:   Exit handler code
+ Parameters:    global-> our global workspace
+ Returns:       error pointer if we are to raise an error (OS_GenerateError), or NULL to exit (OS_Exit)
+                On return the environment should have been restored.
+ ******************************************************************/
+_kernel_oserror *env_exit(globalws_t *global)
+{
+    _kernel_oserror *err;
+
+    /* They called OS_Exit, so just go back to the prompt (unless they were /at/ the prompt, in which case exit) */
+    dprintf("GOS: Exit handler (%s)", global->in_prompt ? "in prompt" : "outside prompt");
+    if (global->in_prompt)
+    {
+        env_gos_restore(global);
+        /* We were in the prompt so we restore environment and exit */
+        err = NULL; /* Just OS_Exit */
+    }
+    else
+    {
+        err = run_prompt(global);
+    }
+    /* Return from this environment exit handler, frees all our workspace and calls OS_Exit */
+    return err;
+}
+
+
+/*************************************************** Gerph *********
+ Function:      env_error
+ Description:   Error handler code
+ Parameters:    global-> our global workspace
+ Returns:       error pointer if we are to raise an error (OS_GenerateError), or NULL to exit (OS_Exit)
+                On return the environment should have been restored.
+ ******************************************************************/
+_kernel_oserror *env_error(globalws_t *global)
+{
+    _kernel_oserror *err = &global->error_buffer.err;
+    dprintf("GOS: Error handler\n");
+
+    print_error(global, err);
+
+    /* And return to the command line input */
+    err = run_prompt(global);
+
+    /* Return from this environment exit handler, frees all our workspace and calls OS_Exit */
+    return err;
+}
+
+
+/*************************************************** Gerph *********
+ Function:      env_escape
+ Description:   Escape handler code
+ Parameters:    global-> our global workspace
+ Returns:       none (returns back to the application unless you do something else)
+ ******************************************************************/
+void env_escape(globalws_t *global)
+{
+    /* WARNING: We are in SVC mode! */
+    /* Nothing to do here (in the default Escape handler this is MOV pc,lr) */
+    dprintf("GOS: Escape handler\n");
+}
+

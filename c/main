@@ -24,69 +24,6 @@
 
 
 /*************************************************** Gerph *********
- Function:      env_exit
- Description:   Exit handler code
- Parameters:    global-> our global workspace
- Returns:       error pointer if we are to raise an error (OS_GenerateError), or NULL to exit (OS_Exit)
-                On return the environment should have been restored.
- ******************************************************************/
-_kernel_oserror *env_exit(globalws_t *global)
-{
-    _kernel_oserror *err;
-
-    /* They called OS_Exit, so just go back to the prompt (unless they were /at/ the prompt, in which case exit) */
-    dprintf("GOS: Exit handler (%s)", global->in_prompt ? "in prompt" : "outside prompt");
-    if (global->in_prompt)
-    {
-        env_gos_restore(global);
-        /* We were in the prompt so we restore environment and exit */
-        err = NULL; /* Just OS_Exit */
-    }
-    else
-    {
-        err = run_prompt(global);
-    }
-    /* Return from this environment exit handler, frees all our workspace and calls OS_Exit */
-    return err;
-}
-
-
-/*************************************************** Gerph *********
- Function:      env_error
- Description:   Error handler code
- Parameters:    global-> our global workspace
- Returns:       error pointer if we are to raise an error (OS_GenerateError), or NULL to exit (OS_Exit)
-                On return the environment should have been restored.
- ******************************************************************/
-_kernel_oserror *env_error(globalws_t *global, _kernel_oserror *err)
-{
-    dprintf("GOS: Error handler");
-
-    print_error(global, err);
-
-    /* And return to the command line input */
-    err = run_prompt(global);
-
-    /* Return from this environment exit handler, frees all our workspace and calls OS_Exit */
-    return err;
-}
-
-
-/*************************************************** Gerph *********
- Function:      env_escape
- Description:   Escape handler code
- Parameters:    global-> our global workspace
- Returns:       none (returns back to the application unless you do something else)
- ******************************************************************/
-void env_escape(globalws_t *global)
-{
-    /* Nothing to do here (in the default Escape handler this is MOV pc,lr) */
-    dprintf("GOS: Escape handler");
-}
-
-
-
-/*************************************************** Gerph *********
  Function:      cmd_gos
  Description:   Run the *GOS implementation, supplied only with workspace
  Parameters:    global-> our global workspace

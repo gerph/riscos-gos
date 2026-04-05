@@ -82,6 +82,37 @@ _kernel_oserror *os_cli(const char *cli)
 
 
 /*************************************************** Gerph *********
+ Function:      escape_check
+ Description:   Check whether escape is pending
+ Parameters:    none
+ Returns:       true if pending, false if not
+ ******************************************************************/
+bool escape_check(void)
+{
+    _kernel_oserror *err;
+    uint32_t flags = 0;
+    err = _swix(OS_ReadEscapeState, _OUT(_FLAGS), &flags);
+    if ((flags & _C) || err)
+        return true;
+    return false;
+}
+
+#define OSByte_AcknowledgeEscape 0x7E
+
+/*************************************************** Gerph *********
+ Function:      escape_acknowledge
+ Description:   Acknowledge the escape conditions
+ Parameters:    none
+ Returns:       none
+ ******************************************************************/
+void escape_acknowledge(void)
+{
+    _swix(OS_Byte, _IN(0), OSByte_AcknowledgeEscape);
+}
+
+
+#ifdef SIMPLE_APP
+/*************************************************** Gerph *********
  Function:      os_generateerror
  Description:   Raise an error to the environment
  Parameters:    err -> the error to raise
@@ -93,6 +124,7 @@ void os_generateerror(_kernel_oserror *err)
     /* if it returns, that's BAD */
     os_exit();
 }
+#endif
 
 /*************************************************** Gerph *********
  Function:      os_exit
