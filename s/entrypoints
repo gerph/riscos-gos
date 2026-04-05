@@ -102,7 +102,7 @@ handle_exit
 
 
 get_cli_size APCSEntry
-        XSWI    OS_ChangeEnvironment, #CommandLineArea, 0, 0, 0
+        XSWI    XOS_ChangeEnvironment, #CommandLineArea, 0, 0, 0
         MOVVC   r0, r2
         BVC     %FT90
 
