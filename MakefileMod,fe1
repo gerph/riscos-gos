@@ -38,10 +38,16 @@ CDEFINES   =
 OBJS       = o.modhead \
 			 o.dumbprintf \
 			 o.module \
-			 o.entrypoints \
 	         o.os \
 	         o.prompt \
 	         o.env
+
+ifeq (${BUILD64},1)
+OBJS += o.entrypoints64
+else
+OBJS += o.entrypoints
+endif
+
 
 # By default we don't build Fortify in.
 # To include fortify in your module, #include "fortify.h" at the top of your C files

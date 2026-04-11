@@ -43,7 +43,7 @@
  Returns:       error pointer, or NULL if ok
  ******************************************************************/
 _kernel_oserror *os_readvarval(const char *var, char *buf, int buflen, uint32_t context, int type,
-                               uint32_t *contextp, int *sizep, int *typep);
+                               uint32_t *contextp, int32_t *sizep, int32_t *typep);
 
 /*************************************************** Gerph *********
  Function:      os_cli

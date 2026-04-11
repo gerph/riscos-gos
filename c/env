@@ -20,7 +20,7 @@
 #define ENV_READ ((uint32_t)0)
 
 
-#define DEBUG
+//#define DEBUG
 
 #include "debug.h"
 

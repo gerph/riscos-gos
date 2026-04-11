@@ -33,7 +33,7 @@ _kernel_oserror *Err_Escape = &_Err_Escape;
  Returns:       error pointer, or NULL if ok
  ******************************************************************/
 _kernel_oserror *os_readvarval(const char *var, char *buf, int buflen, uint32_t context, int type,
-                               uint32_t *contextp, int *sizep, int *typep)
+                               uint32_t *contextp, int32_t *sizep, int32_t *typep)
 {
     _kernel_oserror *err;
     uintptr_t size = 0;
@@ -160,7 +160,7 @@ void os_exit(void)
 _kernel_oserror *os_readline(char *line, int len)
 {
     _kernel_oserror *err;
-    int read;
+    uint32_t read = 0;
     uint32_t flags = 0;
 #ifdef __riscos64
     err = _swix(OS_ReadLine32, _INR(0, 4)|_OUTR(0, 1), line, len, 32, 128, 0, &flags, &read);

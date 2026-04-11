@@ -5,6 +5,7 @@
  * Date:        05 Apr 2026
  ******************************************************************/
 
+#include <assert.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,7 +17,7 @@
 
 #include "prompt.h"
 
-#define DEBUG
+//#define DEBUG
 
 #include "debug.h"
 
@@ -86,6 +87,7 @@ void print_command_prompt(globalws_t *global)
 
     dprintf("print_command_prompt: global workspace = %p\n", global);
     dprintf("print_command_prompt: cli workspace = %p\n", global->cli);
+    dprintf("print_command_prompt: cli size = %i\n", global->clisize);
 
     err = os_readvarval(PROMPT_VAR, global->cli, global->clisize, 0, VarType_String,
                         NULL, &size, NULL);

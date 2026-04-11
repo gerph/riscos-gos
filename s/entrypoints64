@@ -1,0 +1,179 @@
+; Entrypoints for the *GOS command
+; This is the AArch64 variant of the assembly code.
+
+        AREA    |C$$code|, CODE, READONLY
+
+        GET     hdr.modhand
+        GET     hdr.envnumbers
+
+        GET     hdr.swis64
+        GET     hdr.printmacros64
+        GET     hdr.procapcs64
+
+STACKSIZE       *   2048
+
+        IMPORT  gos_workspace_size
+        IMPORT  start_supervisor
+        IMPORT  env_error
+        IMPORT  env_exit
+        IMPORT  env_escape
+
+        EXPORT  enter_gos
+        EXPORT  entry_env_error
+        EXPORT  entry_env_escape
+        EXPORT  entry_env_exit
+
+
+enter_gos APCSEntry "x19-x24"
+
+        ; Allocate some memory for the USR mode stack.
+        ; Allocate our global workspace.
+        BL      gos_workspace_size                          ; read the workspace size the C needs
+        MOV     x19, x0
+
+            PrintMessage "get_workspace_size: "
+            PrintInteger x19
+            SWI     OS_NewLine
+
+        BL      get_cli_size
+        MOV     x20, x0
+
+            PrintMessage "get_cli_size: "
+            PrintInteger x20
+            SWI     OS_NewLine
+
+        ADD     x3, x19, #STACKSIZE
+        ADD     x3, x3, x20
+
+; Round workspace size to multiple of 32
+        ADD     x3, x3, #31
+        BIC     x3, x3, #31
+
+            PrintMessage "total workspace: "
+            PrintInteger x3
+            SWI     OS_NewLine
+
+        XSWI    XOS_Module, #ModHandReason_Claim
+        BVS     %FT90
+        ; r2 = our workspace ptr, with stack above it (r3 bytes above)
+        ; r5 contains the size of the CLI buffer
+        ; r4 contains the global workspace size
+
+            PrintMessage "global workspace: "
+            PrintHex x2
+            SWI     OS_NewLine
+
+        ; Drop to USR mode.
+;        MRS     r0, CPSR
+;        BIC     r0, r0, #0x1F                               ; enter user mode
+;        MSR     CPSR_cxsf, r0
+
+        ; Set the stack pointer.
+        ADD     x0, x2, x3                                  ; sp-> end of the workspace
+        BIC     x0, x0, #15                                 ; Align stack end to multiple of 16.
+        MOV     sp, x0
+        MOV     x29, #0                                     ; clear the frame pointer
+
+            MOV     x0, sp
+            PrintMessage "stack pointer: "
+            PrintHex x0
+            SWI     OS_NewLine
+
+        ; Initialise the global workspace
+        ADD     x21, x2, x19                                ; x21-> CLI buffer
+        STR     x21, [x2, #0]                               ; global->cli = CLI buffer
+        STR     x20, [x2, #8]                               ; global->clisize = CLI size
+        STR     x0, [x2, #12]                               ; global->stacktop = stack top
+
+        ; Start execution at `start_supervisor`, passing workspace
+        MOV     x0, x2
+        BL      start_supervisor
+
+; Common exit when supervisor returns (from error or exit handlers)
+handle_exit
+        CMP     x0, #0
+
+        ; if we returned with a error, call OS_GenerateError
+        ; if no error, call OS_Exit
+        BVC     %FT80
+        SWI     OS_GenerateError
+80
+        SWI     OS_Exit
+
+        ; We never reach here.
+
+90
+        APCSExit
+
+
+
+get_cli_size APCSEntry
+        XSWI    XOS_ChangeEnvironment, #CommandLineArea, 0, 0, 0
+        BVS     %FT80
+        MOV     x0, x2
+        B       %FT90
+
+80
+; Not a system that understands the OS_ChangeEnvironment for the CLI size; let's work it out.
+OSByte_ReadKeyboard * 0x81
+; The following system types have 1024 byte CLIs:
+;     &A8 RISC OS 4.0x
+;     &A9 RISC OS 4.3x
+;     &AA RISC OS 5.xx
+;     &AE RISC OS Pyromaniac
+; Everyone else is 256.
+        XSWI    OS_Byte, #OSByte_ReadKeyboard, #0, #255
+        SUB     x1, x1, #&A8
+        CMP     x1, #&AE-&A8
+        BLS     %FT85
+        MOV     x0, #256                                    ; everyone else is 256
+        B       %FT90
+85
+        MOV     x0, #1024
+
+90
+        APCSExit
+
+
+
+
+
+;void entry_env_error(_kernel_oserror *err)
+; => R0 = global workspace pointer
+;    USR mode
+entry_env_error SIGNATURE
+        MOV     x29, #0
+        LDR     x1, [x0, #12]                               ; restore stack to the top
+        MOV     sp, x1
+        BL      env_error                                   ; The C handler
+        B       handle_exit
+
+
+;void entry_env_exit(_kernel_oserror *err)
+; => R12 = global workspace pointer
+;    USR mode
+entry_env_exit SIGNATURE
+        MOV     x29, #0
+        LDR     x1, [x12, #12]                              ; restore stack to the top
+        MOV     sp, x1
+        MOV     x0, x12
+        BL      env_exit                                    ; The C handler
+        B       handle_exit
+
+
+;void entry_env_escape(_kernel_oserror *err)
+; => R12 = global workspace pointer
+;   SVC mode
+entry_env_escape SIGNATURE
+        Entry   "x0-x17"
+        MOV     x29, #0
+        MOV     x0, x12
+        BL      env_escape
+        EXIT
+
+        EXPORT os_generateerror
+os_generateerror SIGNATURE
+        SWI     OS_GenerateError
+        SWI     OS_Exit
+
+        END

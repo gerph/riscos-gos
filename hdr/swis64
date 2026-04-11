@@ -1,0 +1,16 @@
+
+        GET hdr/swis
+
+        MACRO
+$label  SWI     $swi
+    [ $swi <= 0xFFFF
+        MOV     w10, #$swi
+    |
+        MOV     w10, #$swi :AND: 0xFFFF
+        MOVK    w10, #($swi :AND: 0xFFFF0000) :SHR: 16, LSL #16
+    ]
+        SVC     #0
+        MEND
+
+        END
+

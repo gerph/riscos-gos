@@ -1,0 +1,326 @@
+; Some macros for printing things
+
+        GBLS    printbufferaddress
+        GBLS    printbufferregister
+
+; if printbufferaddress is set, we use it; otherwise we use x12
+printbufferaddress  SETS    ""
+printbufferregister SETS    "x12"
+printbuffersize * 20
+
+; -------------------------------------------------------------------------
+        MACRO
+        SetupPrintBuffer $regnum
+    [ "$printbufferaddress" = ""
+        MOV     $regnum, $printbufferregister
+    |
+        ADRL    $regnum, $printbufferaddress
+    ]
+        MEND
+
+; -------------------------------------------------------------------------
+        MACRO
+        PrintInteger    $regnum, $width
+        PrintNumber     $regnum, $width, OS_ConvertInteger4
+        MEND
+
+; -------------------------------------------------------------------------
+        MACRO
+        PrintSigned    $regnum, $width
+        PrintNumber     $regnum, $width, OS_ConvertInteger4, signed
+        MEND
+
+; -------------------------------------------------------------------------
+        MACRO
+        PrintHex        $regnum, $width
+        SWI     OS_WriteI + '&'
+    [ "$width" <> ""
+        PrintNumber     $regnum, $width-1, OS_ConvertHex8
+    |
+        PrintNumber     $regnum, $width, OS_ConvertHex8
+    ]
+        MEND
+
+        MACRO
+        PrintHex2       $regnum, $width
+        SWI     OS_WriteI + '&'
+    [ "$width" <> ""
+        PrintNumber     $regnum, $width-1, OS_ConvertHex2
+    |
+        PrintNumber     $regnum, $width, OS_ConvertHex2
+    ]
+        MEND
+
+; -------------------------------------------------------------------------
+        MACRO
+        PrintMessage    $message, $width
+        SWI     OS_WriteS
+        = "$message", 0
+        ALIGN
+    [ "$width" <> ""
+    [ $width > :LEN: "$message"
+        Push    "x1"
+        MOV     x1, #$width - :LEN: "$message"
+10
+        SWI     OS_WriteI + ' '
+        SUBS    x1, x1, #1
+        BNE     %BT10
+        Pull    "x1"
+    ]
+    ]
+        MEND
+
+; -------------------------------------------------------------------------
+        MACRO
+        PrintNumber     $regnum, $width, $swinum, $signed
+        Push    "x0-x3"
+    [ "$regnum" <> "x0"
+        MOV     x0, $regnum
+    ]
+        SetupPrintBuffer x1
+        MOV     x2, #printbuffersize
+    [ "$signed" <> ""
+        CMP     x0, #0
+        BGE     %FT10
+        SUB     x2, x2, #1
+        RSB     x0, x0, #0
+        SWI     OS_WriteI + '-'
+10
+    ]
+    [ "$swin" = ""
+        SWI     OS_ConvertInteger4          ; they probably meant PrintInteger, so we just give them that
+    |
+        SWI     $swinum
+    ]
+        SWI     OS_Write0
+    [ "$width" <> ""
+        MOV     x3, #printbuffersize
+        SUB     x2, x3, x2                   ; number of characters written
+        MOV     x3, #$width
+        SUBS    x2, x3, x2                   ; number of character to write as padding
+        BMI     %FT20
+        BEQ     %FT20
+10
+        SWI     OS_WriteI + ' '
+        SUBS    x2, x2, #1
+        BNE     %BT10
+20
+    ]
+        Pull    "x0-x3"
+        MEND
+
+; -------------------------------------------------------------------------
+        MACRO
+        PrintString     $regnum, $width
+        Push    "x0, x1"
+    [ "$regnum" <> "x0"
+        MOV     x0, $regnum
+    ]
+    [ "$regnum" <> "x1" :LAND: "$width" <> ""
+        MOV     x1, x0
+    ]
+        SWI     OS_Write0
+    [ "$width" <> ""
+    [ $width > 0
+        SUB     x1, x0, x1
+        RSBS    x1, x1, #$width
+40
+        SWIPL   OS_WriteI + ' '
+        SUBS    x1, x1, #1
+        BPL     %BT40
+    ]
+    ]
+        Pull    "x0, x1"
+        MEND
+
+; -------------------------------------------------------------------------
+        MACRO
+        PrintStringN    $regnum, $length
+        Push    "x0-x1"
+    [ "$length" = "x0"
+        MOV     x1, $length
+     [ "$regnum" = "x1"
+        LDR     x0, [sp, #8]
+     ]
+    ]
+    [ "$regnum" <> "x0" :LAND: "$length" <> "x0"
+        MOV     x0, $regnum
+    ]
+    [ "$length" <> "x1" :LAND: "$length" <> "x0"
+        MOV     x1, $length
+    ]
+        SWI     OS_WriteN
+        Pull    "x0-x1"
+        MEND
+
+; -------------------------------------------------------------------------
+        MACRO
+        PrintStringCR   $regnum, $width
+        Push    "x0-x2"
+    [ "$regnum" <> "x0"
+        MOV     x0, $regnum
+    ]
+        ; find the length we'll write
+    [ "$regnum" <> "x1"
+        MOV     x1, x0
+    ]
+10
+        LDRB    w2, [x1], #1
+        CMP     w2, #13
+        BNE     %BT10
+        ; r1-> the terminator
+        SUB     x1, x1, x0
+        SUB     x1, x1, #1                      ; don't print the terminator
+        SWI     OS_WriteN
+    [ "$width" <> ""
+    [ $width > 0
+        RSBS    x1, x1, #$width - 1
+40
+        SWIPL   OS_WriteI + ' '
+        SUBS    x1, x1, #1
+        BPL     %BT40
+    ]
+    ]
+        Pull    "x0-x2"
+        MEND
+
+; -------------------------------------------------------------------------
+        MACRO
+        PrintStringCtrl   $regnum, $width
+        Push    "x0-x2"
+    [ "$regnum" <> "x0"
+        MOV     x0, $regnum
+    ]
+        ; find the length we'll write
+    [ "$regnum" <> "x1"
+        MOV     x1, x0
+    ]
+10
+        LDRB    w2, [r1], #1
+        CMP     w2, #32
+        BHS     %BT10
+        ; r1-> the terminator
+        SUB     x1, x1, x0
+        SUB     x1, x1, #1                      ; don't print the terminator
+        SWI     OS_WriteN
+    [ "$width" <> ""
+    [ $width > 0
+        RSBS    x1, x1, #$width - 1
+40
+        SWIPL   OS_WriteI + ' '
+        SUBS    x1, x1, #1
+        BPL     %BT40
+    ]
+    ]
+        Pull    "x0-x2"
+        MEND
+
+; -------------------------------------------------------------------------
+        MACRO
+        PrintLine    $message
+    [ "$message" <> ""
+        PrintMessage "$message", 0
+    ]
+        SWI     OS_NewLine
+        MEND
+
+; -------------------------------------------------------------------------
+        MACRO
+        PrintError
+        Push    "x0, x1"
+        SWI     OS_WriteI + '['
+        LDR     w1, [x0], #4
+        PrintHex x1
+        SWI     OS_WriteI + ']'
+        SWI     OS_WriteI + ' '
+        PrintString x0
+        Pull    "x0, x1"
+        MEND
+
+
+; -------------------------------------------------------------------------
+; Print Named Bits
+        MACRO
+        PrintNamedBits $reg, $bits, $bitwidth
+        Push    "x0-x5"
+        LDR     x5, =$bits
+        MOV     x3, $reg
+        SWI     OS_WriteS
+        = "Bit: ",0
+
+; Print the bit pattern
+        MOV     x0, #1 << ($bitwidth - 1)   ; current mask
+        MOV     x1, #$bitwidth - 1          ; current bit number
+        MOV     x2, #$bitwidth - 1          ; lowest bit used
+        MOV     x4, #0                      ; width used in bits
+10
+        TST     x0, x5
+        BNE     %FT15
+        SWI     OS_WriteI + '.'
+        B       %FT30
+15
+        MOV     x2, x1
+        ADD     x4, x4, #1
+        TST     x0, x3
+        Push    "x0, x1"
+        MOV     x0, #'0'
+        MOV     x1, #'1'
+        CSEL    x0, x1, x0, NE
+        SWI     OS_WriteC
+        Pull    "x0, x1"
+30
+        SUB     x1, x1, #1
+        MOVS    x0, x0, LSR #1
+        BNE     %BT10
+
+; spacer
+        SWI     OS_WriteI + ' '
+        SWI     OS_WriteI + ' '
+
+; Print the value
+        AND     x1, x3, x5
+        MOV     x1, x1, LSR x2              ; shift down
+        TEQ     x4, #1
+        BNE     %FT50
+
+; simple flag
+        TEQ     x1, #0
+        ADR     x0, %FT40
+        ADR     x1, %FT41
+        CSEL    x0, x0, x1, NE
+        PrintString r0, 20
+        B       %FT60
+40
+        = "SET",0
+41
+        = "clear",0
+        ALIGN
+
+; bit mask
+50
+        PrintHex x1, 10
+        PrintInteger x1, 10
+
+60
+        PrintMessage $bits, 0
+
+        SWI     OS_NewLine
+
+        Pull    "x0-x5"
+        MEND
+
+
+; -------------------------------------------------------------------------
+        MACRO
+$label  PrintBitChar $reg, $bit, $onchar
+        Push    "x0, x1, lr"
+$label  TST     $reg, #1<<$bit
+        MOV     w0, #$onchar
+        MOV     w1, #' '
+        CSEL    w0, w1, w0, EQ
+        SWI     XOS_WriteC
+        Pull    "x0, x1, lr"
+        MEND
+
+
+        END
