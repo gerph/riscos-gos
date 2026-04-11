@@ -90,12 +90,20 @@ _kernel_oserror *os_cli(const char *cli)
 bool escape_check(void)
 {
     _kernel_oserror *err;
+#ifdef __riscos64
+    uint32_t state = 0;
+    err = _swix(OS_ReadEscapeState, _OUT(0), &state);
+    if (state)
+        return true;
+#else
     uint32_t flags = 0;
     err = _swix(OS_ReadEscapeState, _OUT(_FLAGS), &flags);
-    if ((flags & _C) || err)
+    if (flags & _C)
         return true;
-    return false;
+#endif
+    return err ? true : false;
 }
+
 
 #define OSByte_AcknowledgeEscape 0x7E
 
@@ -112,6 +120,7 @@ void escape_acknowledge(void)
 
 
 #ifdef SIMPLE_APP
+#ifndef __riscos64
 /*************************************************** Gerph *********
  Function:      os_generateerror
  Description:   Raise an error to the environment
@@ -124,6 +133,7 @@ void os_generateerror(_kernel_oserror *err)
     /* if it returns, that's BAD */
     os_exit();
 }
+#endif
 #endif
 
 /*************************************************** Gerph *********
@@ -159,7 +169,7 @@ _kernel_oserror *os_readline(char *line, int len)
     if (flags)
         goto escape;
     line[read] = '\0';
-    return 1;
+    return NULL;
 #else
     err = _swix(OS_ReadLine32, _INR(0, 4)|_OUT(1)|_OUT(_FLAGS), line, len, 32, 128, 0, &read, &flags);
 #ifndef ErrorNumber_ModuleBadSWI

@@ -17,9 +17,9 @@ STACKSIZE       *   1024
         IMPORT  env_escape
 
         EXPORT  enter_gos
-        EXPORT  _env_error
-        EXPORT  _env_escape
-        EXPORT  _env_exit
+        EXPORT  entry_env_error
+        EXPORT  entry_env_escape
+        EXPORT  entry_env_exit
 
 
 enter_gos APCSEntry "r4-r9"
@@ -127,10 +127,10 @@ OSByte_ReadKeyboard * 0x81
 
 
 
-;void _env_error(_kernel_oserror *err)
+;void entry_env_error(_kernel_oserror *err)
 ; => R0 = global workspace pointer
 ;    USR mode
-_env_error SIGNATURE
+entry_env_error SIGNATURE
         MOV     fp, #0
         LDR     sp, [r0, #8]                                ; restore stack to the top
         SUB     sl, sp, #STACKSIZE
@@ -138,10 +138,10 @@ _env_error SIGNATURE
         B       handle_exit
 
 
-;void _env_exit(_kernel_oserror *err)
+;void entry_env_exit(_kernel_oserror *err)
 ; => R12 = global workspace pointer
 ;    USR mode
-_env_exit SIGNATURE
+entry_env_exit SIGNATURE
         MOV     fp, #0
         LDR     sp, [r12, #8]                               ; restore stack to the top
         SUB     sl, sp, #STACKSIZE
@@ -150,10 +150,10 @@ _env_exit SIGNATURE
         B       handle_exit
 
 
-;void _env_escape(_kernel_oserror *err)
+;void entry_env_escape(_kernel_oserror *err)
 ; => R12 = global workspace pointer
 ;   SVC mode
-_env_escape SIGNATURE
+entry_env_escape SIGNATURE
         Entry   "r1-r3, r10-r12"
         MOV     fp, #0
         MOV     r0, r12

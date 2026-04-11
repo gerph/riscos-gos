@@ -61,19 +61,19 @@ void os_changeenvironment(int env, uint32_t in1, uint32_t in2, uint32_t in3, uin
 
 
 #ifdef SIMPLE_APP
-void _env_error(_kernel_oserror *err)
+void entry_env_error(_kernel_oserror *err)
 {
     /* FIXME: We crash */
     *(int*)0 = 0;
 }
 
-void _env_escape(_kernel_oserror *err)
+void entry_env_escape(_kernel_oserror *err)
 {
     /* FIXME: We crash */
     *(int*)0 = 0;
 }
 
-void _env_exit(_kernel_oserror *err)
+void entry_env_exit(_kernel_oserror *err)
 {
     /* FIXME: We crash */
     *(int*)0 = 0;
@@ -122,7 +122,7 @@ void env_gos_apply(globalws_t *global, bool preserve)
                          !preserve ? NULL : &global->parent_handlers.abort_exception_handler);
 
     os_changeenvironment(ErrorHandler,
-                         (uint32_t)&_env_error, (uint32_t)global, (uint32_t)&global->error_buffer,
+                         (uint32_t)&entry_env_error, (uint32_t)global, (uint32_t)&global->error_buffer,
                          !preserve ? NULL : &global->parent_handlers.error_handler);
 
     os_changeenvironment(CallBackHandler,
@@ -130,7 +130,7 @@ void env_gos_apply(globalws_t *global, bool preserve)
                          !preserve ? NULL : &global->parent_handlers.callback_handler);
 
     os_changeenvironment(EscapeHandler,
-                         (uint32_t)&_env_escape, (uint32_t)global, ENV_READ,
+                         (uint32_t)&entry_env_escape, (uint32_t)global, ENV_READ,
                          !preserve ? NULL : &global->parent_handlers.escape_handler);
 
     os_changeenvironment(EventHandler,
@@ -138,7 +138,7 @@ void env_gos_apply(globalws_t *global, bool preserve)
                          !preserve ? NULL : &global->parent_handlers.event_handler);
 
     os_changeenvironment(ExitHandler,
-                         (uint32_t)&_env_exit, (uint32_t)global, ENV_READ,
+                         (uint32_t)&entry_env_exit, (uint32_t)global, ENV_READ,
                          !preserve ? NULL : &global->parent_handlers.exit_handler);
 
     os_changeenvironment(UpCallHandler,
